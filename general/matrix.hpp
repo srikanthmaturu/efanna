@@ -6,6 +6,9 @@
 #include <stdexcept>
 #include <vector>
 #include <iostream>
+
+#include <boost/serialization/array.hpp>
+
 #include "distance.hpp"
 namespace efanna {
 
@@ -38,6 +41,30 @@ public:
         }
     }
 
+    template <class Archive>
+    void serialize(Archive &ar, const unsigned int version){
+        ar & rows_;
+        ar & cols_;
+        ar & align_cols;
+        T* data;
+        if (Archive::is_loading::value)
+        {
+            data = new T[rows_ * cols_];
+        }
+        else{
+            data = row_pointers_[0];
+        }
+
+        data & boost::serialization::make_array<T>(data, rows_ * cols_);
+
+        if (Archive::is_loading::value)
+        {
+            for (size_t i = 0; i < rows_; i++) {
+                row_pointers_.push_back(reinterpret_cast<const T*>(data) + (align_cols * i));
+            }
+        }
+    }
+
     size_t get_cols() const {
         return cols_;
     }
@@ -67,7 +94,7 @@ public:
         return result;
     }
 private:
-    size_t rows_, cols_;
+    size_t rows_, cols_, align_cols;
     std::vector<const T*> row_pointers_;
 };
 
