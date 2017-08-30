@@ -149,6 +149,9 @@ namespace efanna{
        }
        out.close();
     }
+      std::vector<std::vector<int>>& getResults(){
+          return nn_results;
+      }
 SearchParams SP;
     void setSearchParams(int epochs, int init_num, int extend_to,int search_trees, int search_lv, int search_method){
       SP.search_epoches = epochs;

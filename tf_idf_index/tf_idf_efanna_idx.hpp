@@ -124,15 +124,19 @@ template<class data_type_t, uint64_t ngram_length_t, bool use_tdfs_t, bool use_i
             boost::timer::auto_cpu_timer timer;
             index->knnSearch(kNN, query_matrix);
             std::cout<<timer.elapsed().wall / 1e9<<std::endl;
-
-            std::cout << std::endl;
+            std::vector<std::vector<int>>& query_results = index->getResults();
+            //std::cout << std::endl;
+            uint64_t original_data_size = original_data.size();
             i = 0;
             for(std::vector<std::string>::iterator q_it = queries_begin_iterator; q_it != queries_end_iterator; q_it++, i++){
                 uint8_t minED = 100;
-                uint64_t size_of_kNN = query_matrix.get_row(i)[0];
+                uint64_t size_of_kNN = query_results[i].size();
                 for(size_t k=1; k <= size_of_kNN ; ++k){
-                    int32_t nearestNeighbour = query_matrix.get_row(i)[i*kNN + k];
-                    std::cout << nearestNeighbour << std::endl;
+                    uint64_t nearestNeighbour = query_results[i][k];
+                    if(nearestNeighbour >= original_data_size){
+                        continue;
+                    }
+                    //std::cout << nearestNeighbour << std::endl;
                     uint64_t edit_distance = uiLevenshteinDistance(*q_it, original_data[nearestNeighbour]);
                     if(edit_distance == 0){
                         continue;
@@ -146,7 +150,7 @@ template<class data_type_t, uint64_t ngram_length_t, bool use_tdfs_t, bool use_i
                     }
                     query_results_vector[i].push_back(make_pair(original_data[nearestNeighbour], edit_distance));
                 }
-                std::cout << "Processed query: " << offset + i << std::endl;
+                //std::cout << "Processed query: " << offset + i << std::endl;
             }
             return query_results_vector;
         }

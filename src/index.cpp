@@ -169,7 +169,7 @@ int main(int argc, char* argv[]){
 
         for(uint64_t bi = 0; bi < number_of_blocks; bi++){
             uint64_t block_end = (bi == (number_of_blocks-1))? queries_size : (bi + 1)*block_size;
-            auto query_results_vector = tf_idf_efanna_i.match(queries.begin()+bi * block_size, queries.begin()+block_end, (block_end - bi * block_size), bi * block_size);
+            std::vector< std::vector< pair<std::string, uint64_t > > > query_results_vector = tf_idf_efanna_i.match(queries.begin()+bi * block_size, queries.begin()+block_end, (block_end - bi * block_size), bi * block_size);
             //#pragma omp parallel for
             for(uint64_t i= bi * block_size, j = 0; i< block_end; i++, j++){
                 results_file << ">" << queries[i] << endl;
@@ -177,9 +177,9 @@ int main(int argc, char* argv[]){
                 for(size_t k=0; k<query_results_vector[j].size(); k++){
                     results_file << "" << query_results_vector[j][k].first.c_str() << "  " << query_results_vector[j][k].second << endl;
                 }
-                query_results_vector.clear();
                 cout << "Processed query: " << i << endl;
             }
+            query_results_vector.clear();
         }
 
         auto stop = timer::now();

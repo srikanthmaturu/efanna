@@ -70,7 +70,7 @@ public:
                 row_pointers_.push_back(reinterpret_cast<const T*>(data) + (align_cols * i));
             }
         }
-        std::cout << " Rows: " << rows_ << " Cols: " << cols_ << " Align Cols:" << align_cols <<" data sample:" << data[rows_ * cols_ - 2] << std::endl;
+        //std::cout << " Rows: " << rows_ << " Cols: " << cols_ << " Align Cols:" << align_cols <<" data sample:" << data[rows_ * cols_ - 2] << std::endl;
     }
 
     size_t get_cols() const {
