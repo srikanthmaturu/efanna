@@ -19,6 +19,7 @@
 #include <string>
 #include <math.h>
 #include <ctime>
+#include <malloc.h>
 
 
 #include <boost/serialization/vector.hpp>
@@ -44,6 +45,9 @@ template<class data_type_t, uint64_t ngram_length_t, bool use_tdfs_t, bool use_i
         tf_idf_efanna_idx &operator=(tf_idf_efanna_idx &&) = default;
 
         tf_idf_efanna_idx(std::vector<std::string> &data) {
+            original_data = data;
+            center.resize(pow(4, ngram_length), 0.0);
+            construct_dataset(data);
 
         }
 
@@ -51,7 +55,7 @@ template<class data_type_t, uint64_t ngram_length_t, bool use_tdfs_t, bool use_i
         typedef efanna::Matrix<data_type> Dataset;
 
         efanna::FIndex<float> * index;
-        Dataset dataset;
+        Dataset * dataset;
 
         bool use_tdfs = use_tdfs_t;
         bool use_iidf = use_iidf_t;
@@ -96,9 +100,9 @@ template<class data_type_t, uint64_t ngram_length_t, bool use_tdfs_t, bool use_i
             ia >> center;
         }
 
-        std::vector< std::vector< pair<std::string, uint64_t > > > match(std::vector<std::string>::iterator queries_begin_iterator, std::vector<std::string>::iterator queries_end_iterator, uint64_t number_of_queries) {
-            std::vector< std::vector< pair<std::string, uint64_t > > > query_results_vector;
-            uint64_t n_cols = dataset.get_cols();
+        std::vector< std::vector< pair<std::string, uint64_t > > > match(std::vector<std::string>::iterator queries_begin_iterator, std::vector<std::string>::iterator queries_end_iterator, uint64_t number_of_queries, uint64_t offset) {
+            std::vector< std::vector< pair<std::string, uint64_t > > > query_results_vector(number_of_queries);
+            uint64_t n_cols = dataset->get_cols();
             data_type * query_data = new data_type[number_of_queries * n_cols];
             uint64_t i = 0;
             for(std::vector<std::string>::iterator it = queries_begin_iterator; it != queries_end_iterator; it++, i++){
@@ -116,17 +120,20 @@ template<class data_type_t, uint64_t ngram_length_t, bool use_tdfs_t, bool use_i
             int kNN = 20;
             index->setSearchParams(search_epoc, poolsz, search_extend, search_trees, search_method);
 
-            efanna::Matrix<data_type> query_matrix(queries.size(), n_cols, query_data);
+            efanna::Matrix<data_type> query_matrix(number_of_queries, n_cols, query_data);
             boost::timer::auto_cpu_timer timer;
             index->knnSearch(kNN, query_matrix);
             std::cout<<timer.elapsed().wall / 1e9<<std::endl;
 
             std::cout << std::endl;
-            for(uint64_t i = 0; i < queries.size(); i++){
-                std::vector<int32_t> nearestNeighbours;
+            i = 0;
+            for(std::vector<std::string>::iterator q_it = queries_begin_iterator; q_it != queries_end_iterator; q_it++, i++){
                 uint8_t minED = 100;
-                for(size_t k=0; k < nearestNeighbours.size(); ++k){
-                    uint64_t edit_distance = uiLevenshteinDistance(queries[i], original_data[nearestNeighbours[k]]);
+                uint64_t size_of_kNN = query_matrix.get_row(i)[0];
+                for(size_t k=1; k <= size_of_kNN ; ++k){
+                    int32_t nearestNeighbour = query_matrix.get_row(i)[i*kNN + k];
+                    std::cout << nearestNeighbour << std::endl;
+                    uint64_t edit_distance = uiLevenshteinDistance(*q_it, original_data[nearestNeighbour]);
                     if(edit_distance == 0){
                         continue;
                     }
@@ -137,16 +144,16 @@ template<class data_type_t, uint64_t ngram_length_t, bool use_tdfs_t, bool use_i
                     else if(edit_distance > minED){
                         continue;
                     }
-                    query_results_vector[i].push_back(make_pair(original_data[nearestNeighbours[k]], edit_distance));
+                    query_results_vector[i].push_back(make_pair(original_data[nearestNeighbour], edit_distance));
                 }
-                std::cout << "Processed query: " << i << std::endl;
+                std::cout << "Processed query: " << offset + i << std::endl;
             }
             return query_results_vector;
         }
 
         void initialize_index(){
-            index = new efanna::FIndex<float>(dataset, new efanna::L2DistanceAVX<data_type>(),
-                                  efanna::KDTreeUbIndexParams(true, total_number_of_trees, conquer_to_depth, iteration_number, check, l, k, total_number_of_trees, s));
+            index = new efanna::FIndex<data_type>(*dataset, new efanna::L2Distance<data_type>(),
+                                   efanna::KDTreeUbIndexParams(true, total_number_of_trees, conquer_to_depth, iteration_number, check, l, k, total_number_of_trees, s));
         }
 
         void build_index(){
@@ -157,18 +164,26 @@ template<class data_type_t, uint64_t ngram_length_t, bool use_tdfs_t, bool use_i
             cout<<"Index building time : "<<(f-s)*1.0/CLOCKS_PER_SEC<<" seconds"<<endl;
         }
 
-        void load_index(std::string idx_file){
-            index->loadIndex(idx_file);
+        void load_index(char * idx_file){
+            std::cout << "Loading Graphs " << std::endl;
+            index->loadGraph(strcat(strcpy(new char[strlen(idx_file) + 10], idx_file), ".graphs"));
+            std::cout << "Loading Trees" << std::endl;
+            index->loadTrees(strcat(strcpy(new char[strlen(idx_file) + 10], idx_file), ".trees"));
+            //index->loadIndex(idx_file);
         }
 
-        void store_index(std::string idx_file){
-            index->saveIndex(idx_file);
+        void store_index(char * idx_file){
+            std::cout << "Storing Graphs" << std::endl;
+            index->saveGraph(strcat(strcpy(new char[strlen(idx_file) + 10], idx_file), ".graphs"));
+            std::cout << "Storing Trees" << std::endl;
+            index->saveTrees(strcat(strcpy(new char[strlen(idx_file) + 10], idx_file), ".trees"));
+            //index->saveIndex(idx_file);
         }
 
     std::vector<data_type> getQuery_tf_idf_vector(std::string query) {
             uint64_t tf_vec_size = pow(4, ngram_length);
             uint64_t string_size = query.size();
-            uint64_t data_size = dataset.get_rows();
+            uint64_t data_size = dataset->get_rows();
             std::vector<data_type> tf_idf_vector(tf_vec_size, 0);
             for (uint64_t i = 0; i < string_size - ngram_length + 1; i++) {
                 std::string ngram = query.substr(i, ngram_length);
@@ -204,16 +219,19 @@ template<class data_type_t, uint64_t ngram_length_t, bool use_tdfs_t, bool use_i
             return tf_idf_vector;
         }
 
+
         void construct_dataset(std::vector<std::string> &data) {
             uint64_t tf_vec_size = pow(4, ngram_length);
             uint64_t data_size = data.size();
             uint64_t string_size = data[0].size();
             tdfs.resize(tf_vec_size);
-            std::vector<double> vec_sq_sums(data_size);
+            //std::vector<double> vec_sq_sums(data_size);
 
-            data_type* tf_idf_vectors = (data_type*)memalign(KGRAPH_MATRIX_ALIGN, data_size * tf_vec_size * sizeof(data_type));
+            data_type* tf_idf_vectors_data = (data_type*)memalign(KGRAPH_MATRIX_ALIGN, data_size * tf_vec_size * sizeof(data_type));
+            vector<data_type*> tf_idf_vectors;
 
             for (uint64_t i = 0; i < data_size; i++) {
+                tf_idf_vectors.push_back(tf_idf_vectors_data + i * tf_vec_size);
                 for (uint64_t j = 0; j < string_size - ngram_length + 1; j++) {
                     std::string ngram = data[i].substr(j, ngram_length);
                     uint64_t d_num = 0;
@@ -253,29 +271,32 @@ template<class data_type_t, uint64_t ngram_length_t, bool use_tdfs_t, bool use_i
                 //std::cout << std::endl;
             }
 
-            dataset = Dataset(data_size, tf_vec_size, data);
+            dataset = new Dataset(data_size, tf_vec_size, tf_idf_vectors_data);
             re_center_dataset();
         }
 
         void re_center_dataset() {
             // find the center of mass
-            uint64_t data_size = dataset.get_rows();
+
+            uint64_t data_size = dataset->get_rows();
             data_type * row;
-            for(uint64_t i = 0; i < dataset.get_rows(); i++){
-                row = dataset.get_row[i];
-                for(uint64_t j = 0; j < dataset.get_cols(); j++){
-                    center[j] = row[j];
+            for(uint64_t i = 0; i < data_size; i++){
+                row = const_cast<data_type *>(dataset->get_row(i));
+                for(uint64_t j = 0; j < center.size(); j++){
+                    //std::cout << i << " " << j << "\t";
+                    center[j] += row[j];
                 }
+                //std::cout << std::endl;
             }
 
-            for(uint64_t i = 0; i < dataset.get_rows(); i++){
-                center[j] /= data_size;
+            for(uint64_t i = 0; i < center.size(); i++){
+                center[i] /= data_size;
             }
 
             std::cout << "Re-centering dataset points." << std::endl;
-            for(uint64_t i = 0; i < dataset.get_rows(); i++){
-                row = dataset.get_row[i];
-                for(uint64_t j = 0; j < dataset.get_cols(); j++){
+            for(uint64_t i = 0; i < data_size; i++){
+                row = const_cast<data_type *>(dataset->get_row(i));
+                for(uint64_t j = 0; j < center.size(); j++){
                     row[j] -= center[j];
                 }
             }

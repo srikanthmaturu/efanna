@@ -88,15 +88,15 @@ int main(int argc, char* argv[]){
     constexpr uint64_t total_number_of_trees = TOTAL_NUMBER_OF_TREES;
     constexpr uint64_t conquer_to_depth = CONQUER_TO_DEPTH;
     constexpr uint64_t iteration_number = ITERATION_NUMBER;
-    constexpr uint64_t l = L;
+    constexpr uint64_t l = L_CD;
     constexpr uint64_t check = CHECK;
-    constexpr uint64_t k = K;
-    constexpr uint64_t s = S;
+    constexpr uint64_t k = K_CD;
+    constexpr uint64_t s = S_CD;
     constexpr uint64_t number_of_trees_for_building_graph = NUMBER_OF_TREES_FOR_BUILDING_GRAPH;
 
     typedef INDEX_TYPE tf_idf_efanna_index_type;
 
-    if ( argc < 4 ) {
+    if ( argc < 3 ) {
         cout << "Usage: ./" << argv[0] << " sequences_file query_file" << endl;
         return 1;
     }
@@ -111,7 +111,7 @@ int main(int argc, char* argv[]){
 
     string sequences_file = argv[1];
     string queries_file = argv[2];
-    string filter_enabled = argv[3];
+
     cout << "SF: " << sequences_file << " QF:" << queries_file << endl;
     string idx_file = idx_file_trait<data_type , ngram_length, use_tdfs, use_iidf, total_number_of_trees, conquer_to_depth, iteration_number,
             l, check, k, s, number_of_trees_for_building_graph>::value(sequences_file);
@@ -121,8 +121,8 @@ int main(int argc, char* argv[]){
     tf_idf_efanna_index_type tf_idf_efanna_i;
 
     {
-        ifstream idx_ifs(idx_file);
-        if ( !idx_ifs.good()){
+        ifstream idx_graphs_ifs(idx_file + ".graphs"), idx_trees_ifs(idx_file + ".trees");
+        if ( !idx_graphs_ifs.good() || !idx_trees_ifs.good()){
             auto index_construction_begin_time = timer::now();
             vector<string> sequences;
             load_sequences(sequences_file, sequences);
@@ -131,22 +131,21 @@ int main(int argc, char* argv[]){
                 auto temp = tf_idf_efanna_index_type(sequences);
                 tf_idf_efanna_i = std::move(temp);
             }
+
             tf_idf_efanna_i.store_to_file(data_file);
+            tf_idf_efanna_i.initialize_index();
             tf_idf_efanna_i.build_index();
-            tf_idf_efanna_i.store_index(idx_file);
+            tf_idf_efanna_i.store_index(const_cast<char*>(idx_file.c_str()));
             auto index_construction_end_time = timer::now();
             cout<< "Index construction completed." << endl;
             cout << "# total_time_to_construct_index_in_us :- " << duration_cast<chrono::microseconds>(index_construction_end_time-index_construction_begin_time).count() << endl;
         } else {
             cout << "Index already exists. Using the existing index." << endl;
             tf_idf_efanna_i.load_from_file(data_file);
-            tf_idf_efanna_i.load_index(idx_file);
+            tf_idf_efanna_i.initialize_index();
+            tf_idf_efanna_i.load_index(const_cast<char*>(idx_file.c_str()));
             std::cout << "Loaded from file. " << std::endl;
         }
-
-        vector<string> sequences;
-        load_sequences(sequences_file, sequences);
-        tf_idf_efanna_i = tf_idf_efanna_index_type(sequences);
 
         vector<string> queries;
         load_sequences(queries_file, queries);
@@ -170,7 +169,7 @@ int main(int argc, char* argv[]){
 
         for(uint64_t bi = 0; bi < number_of_blocks; bi++){
             uint64_t block_end = (bi == (number_of_blocks-1))? queries_size : (bi + 1)*block_size;
-            auto query_results_vector = tf_idf_efanna_i.match(queries.begin()+bi * block_size, queries.begin()+block_end, (block_end - bi * block_size));
+            auto query_results_vector = tf_idf_efanna_i.match(queries.begin()+bi * block_size, queries.begin()+block_end, (block_end - bi * block_size), bi * block_size);
             //#pragma omp parallel for
             for(uint64_t i= bi * block_size, j = 0; i< block_end; i++, j++){
                 results_file << ">" << queries[i] << endl;

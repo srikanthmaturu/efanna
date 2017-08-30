@@ -26,7 +26,7 @@ set(Boost_USE_STATIC_RUNTIME OFF)
 set(BOOST_LIBRARYDIR "/util/opt/boost/1.59/gcc/5.4/lib")
 set(BOOST_INCLUDEDIR "/util/opt/boost/1.59/gcc/5.4/include")
 
-find_package(Boost COMPONENTS serialization filesystem REQUIRED)
+find_package(Boost COMPONENTS serialization filesystem timer REQUIRED)
 
 if(Boost_FOUND)
     INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
@@ -71,10 +71,10 @@ FOREACH(line ${exp0.lines})
             TOTAL_NUMBER_OF_TREES=${TOTAL_NUMBER_OF_TREES}
             CONQUER_TO_DEPTH=${CONQUER_TO_DEPTH}
             ITERATION_NUMBER=${ITERATION_NUMBER}
-            L=${L}
+            L_CD=${L}
             CHECK=${CHECK}
-            K=${K}
-            S=${S}
+            K_CD=${K}
+            S_CD=${S}
             NUMBER_OF_TREES_FOR_BUILDING_GRAPH=${NUMBER_OF_TREES_FOR_BUILDING_GRAPH}
             )
     message("Target ${exec}")

@@ -7,7 +7,10 @@
 #include <vector>
 #include <iostream>
 
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/archive/text_iarchive.hpp>
 #include <boost/serialization/array.hpp>
+
 
 #include "distance.hpp"
 namespace efanna {
@@ -15,6 +18,7 @@ namespace efanna {
 template <typename T>
 class Matrix {
 public:
+    Matrix(){}
     /**
      * Create a matrix using number of rows and cols with rawdata.
      * rawdata should be compact without any alignments.
@@ -23,7 +27,6 @@ public:
      */
     Matrix(const size_t rows, const size_t cols, const void* data):
         rows_(rows), cols_(cols) {
-        size_t align_cols;
 #ifdef __GNUC__
 #ifdef __AVX__
         align_cols = (cols + 7)/8*8;//re align to sse format
@@ -38,6 +41,10 @@ public:
         //std::cout<<" DD: "<<align_cols<<std::endl;
         for (size_t i = 0; i < rows; i++) {
             row_pointers_.push_back(reinterpret_cast<const T*>(data) + (align_cols * i));
+            for(size_t j = 0; j < align_cols * i; j++){
+                //std::cout << ((row_pointers_[row_pointers_.size() - 1]))[j] << "\t";
+            }
+            //std::cout <<  std::endl;
         }
     }
 
@@ -46,16 +53,16 @@ public:
         ar & rows_;
         ar & cols_;
         ar & align_cols;
-        T* data;
+        T* data = NULL;
         if (Archive::is_loading::value)
         {
             data = new T[rows_ * cols_];
         }
         else{
-            data = row_pointers_[0];
+            data = const_cast<T*>(row_pointers_[0]);
         }
 
-        data & boost::serialization::make_array<T>(data, rows_ * cols_);
+        ar & boost::serialization::make_array<T>(data, rows_ * cols_);
 
         if (Archive::is_loading::value)
         {
@@ -63,6 +70,7 @@ public:
                 row_pointers_.push_back(reinterpret_cast<const T*>(data) + (align_cols * i));
             }
         }
+        std::cout << " Rows: " << rows_ << " Cols: " << cols_ << " Align Cols:" << align_cols <<" data sample:" << data[rows_ * cols_ - 2] << std::endl;
     }
 
     size_t get_cols() const {
@@ -71,6 +79,10 @@ public:
 
     size_t get_rows() const {
         return rows_;
+    }
+
+    size_t get_align_cols() const {
+        return align_cols;
     }
 
     const T* get_row(const size_t index) const {

@@ -48,7 +48,8 @@ public:
 		initIndex_->saveGraph(filename);
 	}
 	void loadGraph(char* filename){
-		initIndex_->loadGraph(filename);
+		std::cout << filename << std::endl;
+        initIndex_->loadGraph(filename);
 	}
 	void saveResults(char* filename){
 		initIndex_->saveResults(filename);
