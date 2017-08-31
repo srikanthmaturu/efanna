@@ -32,7 +32,9 @@ const string index_name = "TF_IDF_EFANNA_IDX";
 
 string pt_name = "";
 
-#define getindextype(ngl, utd, uiidf, th, pt) tf_idf_falconn_idx<ngl,utd,uiidf,th,pt>
+#define getindextype(data_type, ngram_length, use_tdfs, use_iidf, total_number_of_trees, conquer_to_depth, iteration_number, l, check, \
+k, s, number_of_trees_for_building_graph) tf_idf_efanna_idx<data_type, ngram_length, use_tdfs, use_iidf, total_number_of_trees, conquer_to_depth, iteration_number, l, check, \
+k, s, number_of_trees_for_building_graph>
 #define STR(x)    #x
 #define STRING(x) STR(x)
 
@@ -94,7 +96,13 @@ int main(int argc, char* argv[]){
     constexpr uint64_t s = S_CD;
     constexpr uint64_t number_of_trees_for_building_graph = NUMBER_OF_TREES_FOR_BUILDING_GRAPH;
 
+#ifdef BS_CMAKE
     typedef INDEX_TYPE tf_idf_efanna_index_type;
+#else
+    typedef getindextype(data_type, ngram_length, use_tdfs, use_iidf, total_number_of_trees, conquer_to_depth, iteration_number, l, check,
+                k, s, number_of_trees_for_building_graph) tf_idf_efanna_index_type;
+#endif
+
 
     if ( argc < 3 ) {
         cout << "Usage: ./" << argv[0] << " sequences_file query_file" << endl;

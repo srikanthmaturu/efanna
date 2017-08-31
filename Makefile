@@ -35,3 +35,9 @@ clean:
 	rm -rf $(SHARED_LIB)
 	rm -rf $(SAMPLES)
 	rm -rf $(SAMPLE_OBJS)
+
+tf_idf_efanna_index:
+	$(GXX) $(CPFLAGS) src/index.cpp -o tf_idf_efanna_index -I ./tf_idf_index  -I ./ -I ./algorithm -I ./general -pthread \
+	-D DATA_TYPE=float -D NGRAM_LENGTH=3 -D USE_TDFS=false -D USE_IIDF=false -D TOTAL_NUMBER_OF_TREES=32 -D CONQUER_TO_DEPTH=8 -D ITERATION_NUMBER=8 \
+	-D L_CD=200 -D CHECK=200 -D K_CD=100 -D S_CD=10 -D NUMBER_OF_TREES_FOR_BUILDING_GRAPH=8 $(LDFLAGS) -l boost_serialization -l boost_filesystem
+
